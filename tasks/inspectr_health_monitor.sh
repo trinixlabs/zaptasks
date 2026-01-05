@@ -28,7 +28,9 @@ else
   if [[ "$previous_state" != "down" ]]; then
     notify "Inspectr Down" "Health check failed (HTTP $status_code)."
   fi
-  echo "[$timestamp] Inspectr health FAIL (HTTP $status_code)" >&2
+  failure_message="[$timestamp] Inspectr health FAIL (HTTP $status_code)"
+  echo "$failure_message"
+  echo "$failure_message" >&2
   echo "down" > "$STATE_FILE"
   exit 1
 fi
