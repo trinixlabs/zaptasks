@@ -75,10 +75,23 @@ final class TaskExecutor {
     
     private func handleTaskCompletion(task: TaskItem, success: Bool, output: String) {
         recordExecution(task: task, success: success, output: output)
-        NotificationHelper.showNotification(
-            title: "\(task.name) \(success ? "Completed" : "Failed")",
-            body: output.prefix(100) + (output.count > 100 ? "..." : "")
-        )
+        if shouldNotify(task: task, success: success) {
+            NotificationHelper.showNotification(
+                title: "\(task.name) \(success ? "Completed" : "Failed")",
+                body: output.prefix(100) + (output.count > 100 ? "..." : "")
+            )
+        }
+    }
+    
+    private func shouldNotify(task: TaskItem, success: Bool) -> Bool {
+        switch task.notificationPreference {
+        case .failuresOnly:
+            return !success
+        case .successesOnly:
+            return success
+        case .both:
+            return true
+        }
     }
     
     private func recordExecution(task: TaskItem, success: Bool, output: String) {

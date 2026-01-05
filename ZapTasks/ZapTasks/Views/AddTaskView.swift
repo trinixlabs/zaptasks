@@ -25,6 +25,7 @@ struct AddTaskView: View {
     @State private var monthlyDay: Int = 1
     @State private var monthlyTime: Date = Date()
     @State private var customMinutes: Int = 5
+    @State private var notificationPreference: NotificationPreference = .both
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -78,6 +79,19 @@ struct AddTaskView: View {
                     .frame(width: 150, alignment: .trailing)
                 Toggle("", isOn: $isScheduled)
                     .toggleStyle(SwitchToggleStyle())
+            }
+
+            HStack {
+                Text("Notifications:")
+                    .frame(width: 150, alignment: .trailing)
+                Picker("", selection: $notificationPreference) {
+                    ForEach(NotificationPreference.allCases) { preference in
+                        Text(preference.label)
+                            .tag(preference)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .frame(maxWidth: .infinity)
             }
             
             // Interval Picker and Options (conditionally shown)
@@ -186,6 +200,7 @@ struct AddTaskView: View {
                 interval = TaskInterval(rawValue: task.interval) ?? .daily
                 workingDirectory = task.workingDirectory ?? ""
                 isScheduled = task.isScheduled
+                notificationPreference = task.notificationPreference
                 
                 // Parse the schedule JSON and populate fields
                 if let scheduleData = task.schedule.data(using: .utf8),
@@ -287,6 +302,7 @@ struct AddTaskView: View {
             task.scheduleDisplay = scheduleDisplay
             task.schedule = scheduleString
             task.isScheduled = isScheduled
+            task.notificationPreference = notificationPreference
         } else {
             // Create a new task
             let newTask = TaskItem(
@@ -298,7 +314,8 @@ struct AddTaskView: View {
                 scheduleDisplay: scheduleDisplay,
                 workingDirectory: workingDirectory,
                 lastRan: nil,
-                isScheduled: isScheduled
+                isScheduled: isScheduled,
+                notificationPreferenceRaw: notificationPreference.rawValue
             )
             context.insert(newTask)
         }

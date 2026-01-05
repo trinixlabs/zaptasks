@@ -46,7 +46,6 @@ struct TaskMenuBarView: View {
                 }
             }
             
-            Divider()
             // Manage Tasks Button
             Button("Manage Tasks") {
                 openMainWindow()
