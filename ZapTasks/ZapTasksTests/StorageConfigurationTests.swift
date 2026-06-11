@@ -37,8 +37,9 @@ struct StorageConfigurationTests {
     @Test func migratesLegacyContainerStoreIntoNamespacedDirectory() throws {
         let rootURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let appSupportURL = rootURL.appendingPathComponent("Library/Application Support", isDirectory: true)
-        let legacyContainerURL = rootURL
+        let userRootURL = rootURL.appendingPathComponent("User", isDirectory: true)
+        let appSupportURL = userRootURL.appendingPathComponent("Library/Application Support", isDirectory: true)
+        let legacyContainerURL = userRootURL
             .appendingPathComponent("Library/Containers/com.trinix.ZapTasks/Data/Library/Application Support", isDirectory: true)
 
         try FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
