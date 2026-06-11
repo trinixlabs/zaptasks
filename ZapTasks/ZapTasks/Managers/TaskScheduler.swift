@@ -25,10 +25,12 @@ final class TaskScheduler: ObservableObject {
     func start() {
         stop() // Stop any existing timer before starting a new one
         print("TaskScheduler started.")
-        
+
+        loadTasks()
+
         // Handle missed tasks
         executeMissedTasks()
-        
+
         // Start the periodic timer for task execution
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             print("Timer fired at \(Date().formatted())")
@@ -62,8 +64,8 @@ final class TaskScheduler: ObservableObject {
         }
         
         loadTasks()
-        print("Triggering executeTasks with \(tasks.count) task(s).")   
-        
+        print("Triggering executeTasks with \(tasks.count) task(s).")
+
         let now = Date()
         for task in tasks {
             print("Evaluating task: \(task.name), schedule: \(task.schedule)")
@@ -81,22 +83,27 @@ final class TaskScheduler: ObservableObject {
     func executeMissedTasks() {
         let now = Date()
         for task in tasks {
-            // If the task has never been run, assume it was missed
-            guard let lastRan = task.lastRan else {
-                print("Task \(task.name) has never been run. Checking if due...")
-                if let nextRun = calculateNextRun(for: task), nextRun <= now {
-                    print("Missed task \(task.name) is due. Executing...")
-                    executor.execute(task: task)
-                }
-                continue
-            }
-            
-            // If lastRan exists, determine if the task was due since the last run
-            if let nextRun = calculateNextRun(for: task, from: lastRan), nextRun <= now {
-                print("Missed task \(task.name) was due after \(lastRan). Executing now...")
+            if shouldExecuteMissedTask(task, now: now) {
+                print("Missed task \(task.name) should execute now.")
                 executor.execute(task: task)
             }
         }
+    }
+
+    func shouldExecuteMissedTask(_ task: TaskItem, now: Date) -> Bool {
+        guard task.isScheduled else {
+            return false
+        }
+
+        if let lastRan = task.lastRan {
+            return calculateNextRun(for: task, from: lastRan).map { $0 <= now } ?? false
+        }
+
+        guard let lookbackStart = missedTaskLookbackStart(for: task, now: now) else {
+            return false
+        }
+
+        return calculateNextRun(for: task, from: lookbackStart).map { $0 <= now } ?? false
     }
     
     private func checkServiceHealth() {
@@ -169,15 +176,14 @@ final class TaskScheduler: ObservableObject {
     func calculateNextRun(for task: TaskItem, from startDate: Date = Date()) -> Date? {
         guard let schedule = parseSchedule(task.schedule) else { return nil }
         let calendar = Calendar.current
-        let now = Date()
-        
+
         switch schedule["type"] as? String {
         case "daily":
             guard let time = schedule["time"] as? String else { return nil }
             return timeToNextDate(time: time, from: startDate)
         case "hourly":
             guard let minute = schedule["minute"] as? Int else { return nil }
-            let currentMinute = calendar.component(.minute, from: now)
+            let currentMinute = calendar.component(.minute, from: startDate)
             let minutesToAdd = (minute > currentMinute) ? (minute - currentMinute) : (60 - (currentMinute - minute))
             return calendar.date(byAdding: .minute, value: minutesToAdd, to: startDate)
         case "weekly":
@@ -193,6 +199,31 @@ final class TaskScheduler: ObservableObject {
             let elapsedMinutes = calendar.component(.minute, from: startDate) % intervalMinutes
             let minutesUntilNext = intervalMinutes - elapsedMinutes
             return startDate.addingTimeInterval(Double(minutesUntilNext) * 60)
+        default:
+            return nil
+        }
+    }
+
+    private func missedTaskLookbackStart(for task: TaskItem, now: Date) -> Date? {
+        guard let schedule = parseSchedule(task.schedule),
+              let scheduleType = schedule["type"] as? String else {
+            return nil
+        }
+
+        switch scheduleType {
+        case "daily":
+            return Calendar.current.date(byAdding: .day, value: -1, to: now)
+        case "hourly":
+            return Calendar.current.date(byAdding: .hour, value: -1, to: now)
+        case "weekly":
+            return Calendar.current.date(byAdding: .day, value: -7, to: now)
+        case "monthly":
+            return Calendar.current.date(byAdding: .month, value: -1, to: now)
+        case "customMinutes":
+            guard let intervalMinutes = schedule["intervalMinutes"] as? Int else {
+                return nil
+            }
+            return Calendar.current.date(byAdding: .minute, value: -intervalMinutes, to: now)
         default:
             return nil
         }

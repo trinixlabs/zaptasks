@@ -11,13 +11,10 @@ import SwiftData
 struct TaskMenuBarView: View {
     @Query private var tasks: [TaskItem] // Fetch tasks from SwiftData storage
     @Environment(\.modelContext) private var context
-    @State private var mainWindow: NSWindow?
-    private let executor: TaskExecutor
+    let openMainWindow: () -> Void
 
-    init() {
-        // Pass variadic arguments instead of an array
-        let context = try! ModelContainer(for: TaskItem.self, ExecutionRecord.self).mainContext
-        self.executor = TaskExecutor(context: context)
+    init(openMainWindow: @escaping () -> Void = {}) {
+        self.openMainWindow = openMainWindow
     }
 
     var body: some View {
@@ -45,7 +42,9 @@ struct TaskMenuBarView: View {
                     }
                 }
             }
-            
+
+            Divider()
+
             // Manage Tasks Button
             Button("Manage Tasks") {
                 openMainWindow()
@@ -70,31 +69,5 @@ struct TaskMenuBarView: View {
             let executor = TaskExecutor(context: context)
             executor.execute(task: task)
         }
-    }
-    
-    func openMainWindow() {
-        if let window = mainWindow {
-            // Ensure the window is visible and focused
-            if !window.isVisible {
-                window.makeKeyAndOrderFront(nil)
-            }
-        } else {
-            let contentView = ContentView()
-                .modelContainer(for: TaskItem.self)
-            
-            let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 1200, height: 600),
-                styleMask: [.titled, .closable, .resizable],
-                backing: .buffered,
-                defer: false
-            )
-            window.title = "Manage Tasks"
-            window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(rootView: contentView)
-            window.center()
-            window.makeKeyAndOrderFront(nil)
-            mainWindow = window
-        }
-        NSApp.activate(ignoringOtherApps: true)
     }
 }
