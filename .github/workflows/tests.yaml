@@ -1,0 +1,40 @@
+name: ZapTasks Tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tests.yaml"
+      - ".github/workflows/release.yaml"
+      - "ZapTasks/**/*.swift"
+      - "ZapTasks/**/*.plist"
+      - "ZapTasks/**/*.entitlements"
+      - "ZapTasks/**/*.xcassets/**"
+      - "ZapTasks/**/*.xcodeproj/**"
+      - "ZapTasks/**/*.xcworkspace/**"
+
+jobs:
+  xcode-unit-tests:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Run unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          xcodebuild test \
+            -project ZapTasks/ZapTasks.xcodeproj \
+            -scheme ZapTasks \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            -only-testing:ZapTasksTests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM=""

@@ -19,47 +19,74 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             // Sidebar: Task List
-            List(tasks, selection: $selectedTask) { task in
-                Text(task.name)
-                    .font(.headline)
-                    .tag(task)
-            }
-            .navigationTitle("Tasks")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: { showExecutionRecords = true }) {
-                        Label("View Execution Records", systemImage: "list.bullet")
+            List {
+                Section(header: Text("Task List").font(.headline)) {
+                    ForEach(tasks.sorted { $0.name < $1.name }, id: \.id) { task in
+                        NavigationLink(
+                            destination: {
+                                let executor = TaskExecutor(context: context)
+                                let scheduler = TaskScheduler(context: context)
+                                TaskDetailsView(
+                                    task: task,
+                                    onEdit: {
+                                        editingTask = task
+                                        showAddEditSheet = true
+                                    },
+                                    onDelete: { task in
+                                        deleteTask(task)
+                                    },
+                                    executor: executor,
+                                    scheduler: scheduler,
+                                    showExecutionRecords: $showExecutionRecords,
+                                    editingTask: $editingTask,
+                                    showAddEditSheet: $showAddEditSheet
+                                )
+                            }
+                        ) {
+                            Label(task.name, systemImage: "bolt.horizontal.circle" )
+                                .font(.body)
+                                .tag(task)
+                        }
                     }
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        editingTask = nil // Reset editingTask
-                        showAddEditSheet = true
-                    }) {
-                        Label("Add Task", systemImage: "plus")
-                    }
-                }
             }
-
+            .frame(minWidth: 300)
+            
         } detail: {
             // Task Details View
             if let task = selectedTask {
                 let executor = TaskExecutor(context: context)
                 let scheduler = TaskScheduler(context: context)
-                TaskDetailsView(task: task, onEdit: {
-                    editingTask = task
-                    showAddEditSheet = true
-                }, onDelete: { task in
-                    deleteTask(task)
-                }, executor: executor, scheduler: scheduler)
+                TaskDetailsView(
+                    task: task,
+                    onEdit: {
+                        editingTask = task
+                        showAddEditSheet = true
+                    },
+                    onDelete: { task in
+                        deleteTask(task)
+                    },
+                    executor: executor,
+                    scheduler: scheduler,
+                    showExecutionRecords: $showExecutionRecords,
+                    editingTask: $editingTask,
+                    showAddEditSheet: $showAddEditSheet
+                )
             } else {
                 Text("Select a task to view details.")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
         }
+        .onAppear {
+            // Select the first task when the view appears
+            if selectedTask == nil, let firstTask = tasks.first {
+                selectedTask = firstTask
+            }
+        }
         .sheet(isPresented: $showAddEditSheet) {
             AddTaskView(task: $editingTask)
+            .frame(minWidth: 600, idealWidth: 700)
         }
         .sheet(isPresented: $showExecutionRecords) {
             ExecutionRecordsView()

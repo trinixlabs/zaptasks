@@ -13,161 +13,203 @@ struct TaskDetailsView: View {
     @Environment(\.modelContext) private var context
     @State private var showDeleteConfirmation = false
     @State private var selectedExecution: ExecutionRecord?
+    
+    @Binding var showExecutionRecords: Bool
+    @Binding var editingTask: TaskItem?
+    @Binding var showAddEditSheet: Bool
+    
     private let executor: TaskExecutor
     private let scheduler: TaskScheduler
+    
+    var onEdit: () -> Void
+    var onDelete: (TaskItem) -> Void
     
     init(task: TaskItem,
          onEdit: @escaping () -> Void,
          onDelete: @escaping (TaskItem) -> Void,
          executor: TaskExecutor,
-         scheduler: TaskScheduler) {
+         scheduler: TaskScheduler,
+         showExecutionRecords: Binding<Bool>,
+         editingTask: Binding<TaskItem?>,
+         showAddEditSheet: Binding<Bool>) {
         self._task = Bindable(task)
         self.onEdit = onEdit
         self.onDelete = onDelete
         self.executor = executor
         self.scheduler = scheduler
+        self._showExecutionRecords = showExecutionRecords
+        self._editingTask = editingTask
+        self._showAddEditSheet = showAddEditSheet
     }
     
-    var onEdit: () -> Void
-    var onDelete: (TaskItem) -> Void
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Task Details")
-                .font(.largeTitle)
-                .bold()
-            
-            Group {
-                Text("Name: \(task.name)")
-                Text("Working Directory: \(task.workingDirectory ?? "-")")
-                Text("Command: \(task.command)")
-                Text("Schedule: \(task.scheduleDisplay)")
-                // Text("Interval: \(task.interval)")
-                
-                // Last Ran
-                if let lastExecution = task.executionRecords.max(by: { $0.date < $1.date }) {
-                    Text("Last Ran: \(lastExecution.date.formatted()) (\(lastExecution.success ? "Success" : "Failure"))")
-                } else {
-                    Text("Last Ran: Never")
-                }
-                
-                // Next Run
-                if let nextRunDate = scheduler.calculateNextRun(for: task) {
-                    Text("Next Run: \(nextRunDate.formatted())")
-                } else {
-                    Text("Next Run: Could not determine")
-                }
-            }
-            .font(.body)
-            
-            Divider()
-                .padding(.vertical, 8)
-            
-            Text("Execution History")
-                .font(.headline)
-            
-            if task.executionRecords.isEmpty {
-                Text("No previous executions")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-            } else {
-                List(task.executionRecords.sorted(by: { $0.date > $1.date })) { execution in
-                    HStack {
-                        Image(systemName: execution.success ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .foregroundColor(execution.success ? .green : .red)
-                        Text(execution.date.formatted())
-                            .font(.body)
-                        Spacer()
-                        Button("Show Output") {
-                            selectedExecution = execution // Pass ExecutionRecord
-                        }
-                        .buttonStyle(.bordered)
-                        Button(role: .destructive) {
-                            deleteExecutionRecord(execution)
-                        } label: {
-                            Text("Delete")
-                        }
-                    }
-                }
-                .listStyle(PlainListStyle())
-                .frame(maxHeight: 200)
-            }
-            
-            Spacer()
-            
-            // Actions
-            HStack {
-                Button("Run Now") {
-                    executor.execute(task: task)
-                }
-                .buttonStyle(.borderedProminent)
-                
-                Button("Edit Task", action: onEdit)
-                    .buttonStyle(.bordered)
-                
-                Button("Delete Task") {
-                    showDeleteConfirmation = true
-                }
-                .foregroundColor(.red)
-                .alert("Delete Task", isPresented: $showDeleteConfirmation) {
-                    Button("Delete", role: .destructive) {
-                        onDelete(task)
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Are you sure you want to delete this task? This action cannot be undone.")
-                }
-            }
-        }
-        .padding()
-        .onDisappear {
-            print("TaskDetailsView disappeared.")
-        }
-        .sheet(item: $selectedExecution) { execution in
+        ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Execution Output")
-                    .font(.title2)
-                    .bold()
-                
-                HStack {
-                    Text("Status:")
-                        .bold()
-                    Text(execution.success ? "Success" : "Failure")
-                        .foregroundColor(execution.success ? .green : .red)
+                // Header Section
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Task Name
+                        Text(task.name)
+                            .font(.largeTitle)
+                            .bold()
+                        
+                        // Scheduled Indicator
+                        HStack {
+                            Button(action: {
+                                task.isScheduled.toggle()
+                                saveTask()
+                            }) {
+                                HStack {
+                                    Image(systemName: task.isScheduled ? "power.circle.fill" : "power.circle")
+                                        .foregroundColor(task.isScheduled ? .green : .red)
+                                    Text("Scheduled:")
+                                        .font(.subheadline)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            Text(task.scheduleDisplay)
+                                .font(.subheadline)
+                            Spacer()
+                        }
+                        
+                        // Edit and Delete Buttons
+                        HStack(spacing: 16) {
+                            Button("Edit Task", action: onEdit)
+                                .buttonStyle(.bordered)
+                            
+                            Button("Delete Task") {
+                                showDeleteConfirmation = true
+                            }
+                            .foregroundColor(.red)
+                            .alert("Delete Task", isPresented: $showDeleteConfirmation) {
+                                Button("Delete", role: .destructive) {
+                                    onDelete(task)
+                                }
+                                Button("Cancel", role: .cancel) {}
+                            } message: {
+                                Text("Are you sure you want to delete this task? This action cannot be undone.")
+                            }
+                        }
+                    }
                     Spacer()
-                }
-                
-                HStack {
-                    Text("Date:")
-                        .bold()
-                    Text(execution.date.formatted())
-                    Spacer()
+                    
+                    // Run Button
+                    Button(action: { executor.execute(task: task) }) {
+                        HStack(spacing: 4) {
+                            Text("Run")
+                            Image(systemName: "play.circle.fill")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
                 
                 Divider()
                 
-                Text("Output:")
+                // Task Details in Two Columns
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(alignment: .top, spacing: 32) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Command:")
+                                    .bold()
+                                    .frame(width: 150, alignment: .leading)
+                                Text(task.command)
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                            
+                            HStack {
+                                Text("Working Directory:")
+                                    .bold()
+                                    .frame(width: 150, alignment: .leading)
+                                Text(task.workingDirectory ?? "/")
+                                    .font(.subheadline)
+                                Spacer()
+                            }
+                            
+                            HStack {
+                                Text("Last Ran:")
+                                    .bold()
+                                    .frame(width: 150, alignment: .leading)
+                                Text(task.executionRecords.max(by: { $0.date < $1.date })?.date.formatted() ?? "Never")
+                                    .font(.subheadline)
+                                    .frame(width: 150, alignment: .leading)
+                                //                                Spacer()
+                                Text("Next Run:")
+                                    .bold()
+                                    .frame(width: 150, alignment: .leading)
+                                if let nextRunDate = scheduler.calculateNextRun(for: task) {
+                                    Text(nextRunDate.formatted())
+                                        .font(.subheadline)
+                                } else {
+                                    Text("Next Run: Could not determine")
+                                        .font(.subheadline)
+                                }
+                            }
+                        }
+                        
+                    }
+                }
+                
+                Divider()
+                
+                // Execution History Section
+                Text("Execution History")
                     .font(.headline)
                 
-                // Console-like Text Area
-                ScrollView {
-                    Text(execution.output)
-                        .font(.system(.body, design: .monospaced)) // Use monospaced font
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.white)
-                        .background(Color(.black))
-                        .textSelection(.enabled)
-                        .padding(.vertical, 4)
+                if task.executionRecords.isEmpty {
+                    Text("No previous executions")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(task.executionRecords.sorted(by: { $0.date > $1.date })) { execution in
+                            ExecutionRow(execution: execution) {
+                                selectedExecution = execution
+                            } onDelete: {
+                                deleteExecutionRecord(execution)
+                            }
+                            Divider()
+                        }
+                    }
+                    .padding(.vertical, 8)
                 }
                 
-                Button("Close") {
-                    selectedExecution = nil
-                }
-                .buttonStyle(.borderedProminent)
+                Spacer()
             }
             .padding()
-            .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+        }
+        .navigationTitle("ZapTasks")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Spacer() // Pushes the items to the right
+            }
+            ToolbarItem(placement: .automatic) {
+                Button(action: { showExecutionRecords = true }) {
+                    Label("View Execution Records", systemImage: "list.bullet")
+                }
+            }
+            ToolbarItem(placement: .automatic) {
+                Button(action: {
+                    editingTask = nil // Reset editingTask
+                    showAddEditSheet = true
+                }) {
+                    Label("Add Task", systemImage: "plus")
+                }
+            }
+        }
+        .sheet(item: $selectedExecution) { execution in
+            ExecutionDetailView(execution: execution) {
+                selectedExecution = nil
+            }
+        }
+    }
+    
+    private func saveTask() {
+        do {
+            try context.save()
+        } catch {
+            print("Failed to save task: \(error)")
         }
     }
     
@@ -180,6 +222,113 @@ struct TaskDetailsView: View {
         }
     }
 }
+
+// MARK: - DetailRow View
+struct DetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label + ":")
+                .font(.subheadline)
+                .bold()
+                .frame(width: 150, alignment: .leading) // Adjust width for alignment
+            Text(value)
+                .font(.subheadline)
+            Spacer()
+        }
+    }
+}
+
+// MARK: - ExecutionRow View
+struct ExecutionRow: View {
+    let execution: ExecutionRecord
+    let onShowOutput: () -> Void
+    let onDelete: () -> Void
+    
+    var body: some View {
+        HStack {
+            Image(systemName: execution.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundColor(execution.success ? .green : .red)
+            Text(execution.date.formatted())
+                .font(.body)
+            Spacer()
+            Button(role: .destructive, action: onDelete) {
+                Text("Delete")
+            }
+            Button("Show Output", action: onShowOutput)
+                .buttonStyle(.bordered)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - ExecutionDetailView
+struct ExecutionDetailView: View {
+    let execution: ExecutionRecord
+    let onClose: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Close Button at the Top-Right
+            HStack {
+                Spacer()
+                Button("Close", action: onClose)
+                    .buttonStyle(.borderedProminent)
+            }
+            
+            // Title
+            Text("Execution Output")
+                .font(.title2)
+                .bold()
+            
+            // Status Row with Icon and Text
+            HStack {
+                Text("Status:")
+                    .font(.subheadline)
+                    .frame(width: 80, alignment: .leading)
+                    .bold()
+                HStack {
+                    Image(systemName: execution.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(execution.success ? .green : .red)
+                    Text(execution.success ? "Success" : "Failure")
+                        .foregroundColor(execution.success ? .green : .red)
+                        .font(.subheadline)
+                }
+            }
+            
+            // Date Row with Label and Value
+            HStack {
+                Text("Date:")
+                    .font(.subheadline)
+                    .frame(width: 80, alignment: .leading)
+                    .bold()
+                Text(execution.date.formatted())
+                    .font(.subheadline)
+            }
+            
+            Divider()
+            
+            Text("Output:")
+                .font(.headline)
+            
+            // Output Section
+            ScrollView {
+                Text(execution.output)
+                    .font(.system(.body, design: .monospaced))
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black)
+                    .foregroundStyle(.white)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding()
+        .frame(minWidth: 800, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+    }
+}
+
 
 /*#Preview {
     let modelContainer = try! ModelContainer(for: TaskItem.self, ExecutionRecord.self)

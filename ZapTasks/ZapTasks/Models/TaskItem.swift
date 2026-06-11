@@ -19,6 +19,7 @@ final class TaskItem: Identifiable {
     var workingDirectory: String?
     var lastRan: Date?
     var isScheduled: Bool // New property to control scheduling
+    var notificationPreferenceRaw: String = NotificationPreference.both.rawValue
     @Relationship(deleteRule: .cascade) var executionRecords: [ExecutionRecord] = []
 
     init(
@@ -30,7 +31,8 @@ final class TaskItem: Identifiable {
         scheduleDisplay: String,
         workingDirectory: String? = nil,
         lastRan: Date? = nil,
-        isScheduled: Bool = true // Default to true
+        isScheduled: Bool = true, // Default to true
+        notificationPreferenceRaw: String = NotificationPreference.both.rawValue
     ) {
         self.id = id
         self.name = name
@@ -41,5 +43,15 @@ final class TaskItem: Identifiable {
         self.workingDirectory = workingDirectory
         self.lastRan = lastRan
         self.isScheduled = isScheduled
+        self.notificationPreferenceRaw = notificationPreferenceRaw
+    }
+
+    var notificationPreference: NotificationPreference {
+        get {
+            NotificationPreference(rawValue: notificationPreferenceRaw) ?? .both
+        }
+        set {
+            notificationPreferenceRaw = newValue.rawValue
+        }
     }
 }

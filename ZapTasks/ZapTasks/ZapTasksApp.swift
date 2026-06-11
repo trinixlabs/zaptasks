@@ -10,6 +10,7 @@ import SwiftData
 
 @main
 struct ZapTasksApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var scheduler: TaskScheduler
     private let modelContainer: ModelContainer
 
@@ -26,7 +27,9 @@ struct ZapTasksApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            TaskMenuBarView()
+            TaskMenuBarView(openMainWindow: {
+                appDelegate.showMainWindow(modelContainer: modelContainer)
+            })
                 .onAppear {
                     print("Starting scheduler...")
                     scheduler.start()

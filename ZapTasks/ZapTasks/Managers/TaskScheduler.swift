@@ -25,6 +25,13 @@ final class TaskScheduler: ObservableObject {
     func start() {
         stop() // Stop any existing timer before starting a new one
         print("TaskScheduler started.")
+
+        loadTasks()
+
+        // Handle missed tasks
+        executeMissedTasks()
+
+        // Start the periodic timer for task execution
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             print("Timer fired at \(Date().formatted())")
             self?.checkServiceHealth()
@@ -57,8 +64,8 @@ final class TaskScheduler: ObservableObject {
         }
         
         loadTasks()
-        print("Triggering executeTasks with \(tasks.count) task(s).")   
-        
+        print("Triggering executeTasks with \(tasks.count) task(s).")
+
         let now = Date()
         for task in tasks {
             print("Evaluating task: \(task.name), schedule: \(task.schedule)")
@@ -71,6 +78,32 @@ final class TaskScheduler: ObservableObject {
                 print("Task \(task.name) has an invalid schedule.")
             }
         }
+    }
+    
+    func executeMissedTasks() {
+        let now = Date()
+        for task in tasks {
+            if shouldExecuteMissedTask(task, now: now) {
+                print("Missed task \(task.name) should execute now.")
+                executor.execute(task: task)
+            }
+        }
+    }
+
+    func shouldExecuteMissedTask(_ task: TaskItem, now: Date) -> Bool {
+        guard task.isScheduled else {
+            return false
+        }
+
+        if let lastRan = task.lastRan {
+            return calculateNextRun(for: task, from: lastRan).map { $0 <= now } ?? false
+        }
+
+        guard let lookbackStart = missedTaskLookbackStart(for: task, now: now) else {
+            return false
+        }
+
+        return calculateNextRun(for: task, from: lookbackStart).map { $0 <= now } ?? false
     }
     
     private func checkServiceHealth() {
@@ -140,33 +173,57 @@ final class TaskScheduler: ObservableObject {
         }
     }
     
-    func calculateNextRun(for task: TaskItem) -> Date? {
+    func calculateNextRun(for task: TaskItem, from startDate: Date = Date()) -> Date? {
         guard let schedule = parseSchedule(task.schedule) else { return nil }
         let calendar = Calendar.current
-        let now = Date()
-        
+
         switch schedule["type"] as? String {
         case "daily":
             guard let time = schedule["time"] as? String else { return nil }
-            return timeToNextDate(time: time, from: now)
+            return timeToNextDate(time: time, from: startDate)
         case "hourly":
             guard let minute = schedule["minute"] as? Int else { return nil }
-            let currentMinute = calendar.component(.minute, from: now)
+            let currentMinute = calendar.component(.minute, from: startDate)
             let minutesToAdd = (minute > currentMinute) ? (minute - currentMinute) : (60 - (currentMinute - minute))
-            return calendar.date(byAdding: .minute, value: minutesToAdd, to: now)
+            return calendar.date(byAdding: .minute, value: minutesToAdd, to: startDate)
         case "weekly":
             guard let day = schedule["day"] as? String,
                   let time = schedule["time"] as? String else { return nil }
-            return timeToNextWeekday(day: day, time: time, from: now)
+            return timeToNextWeekday(day: day, time: time, from: startDate)
         case "monthly":
             guard let day = schedule["day"] as? Int,
                   let time = schedule["time"] as? String else { return nil }
-            return timeToNextMonthly(day: day, time: time, from: now)
+            return timeToNextMonthly(day: day, time: time, from: startDate)
         case "customMinutes":
             guard let intervalMinutes = schedule["intervalMinutes"] as? Int else { return nil }
-            let elapsedMinutes = calendar.component(.minute, from: now) % intervalMinutes
+            let elapsedMinutes = calendar.component(.minute, from: startDate) % intervalMinutes
             let minutesUntilNext = intervalMinutes - elapsedMinutes
-            return now.addingTimeInterval(Double(minutesUntilNext) * 60)
+            return startDate.addingTimeInterval(Double(minutesUntilNext) * 60)
+        default:
+            return nil
+        }
+    }
+
+    private func missedTaskLookbackStart(for task: TaskItem, now: Date) -> Date? {
+        guard let schedule = parseSchedule(task.schedule),
+              let scheduleType = schedule["type"] as? String else {
+            return nil
+        }
+
+        switch scheduleType {
+        case "daily":
+            return Calendar.current.date(byAdding: .day, value: -1, to: now)
+        case "hourly":
+            return Calendar.current.date(byAdding: .hour, value: -1, to: now)
+        case "weekly":
+            return Calendar.current.date(byAdding: .day, value: -7, to: now)
+        case "monthly":
+            return Calendar.current.date(byAdding: .month, value: -1, to: now)
+        case "customMinutes":
+            guard let intervalMinutes = schedule["intervalMinutes"] as? Int else {
+                return nil
+            }
+            return Calendar.current.date(byAdding: .minute, value: -intervalMinutes, to: now)
         default:
             return nil
         }
@@ -199,16 +256,27 @@ final class TaskScheduler: ObservableObject {
         // Get the current weekday and calculate days until the next target weekday
         let currentWeekday = calendar.component(.weekday, from: date)
         let targetWeekday = weekdayIndex + 1 // Calendar.weekday is 1-based (Sunday = 1)
-        let daysUntilNext = (targetWeekday >= currentWeekday) ?
+        var daysUntilNext = (targetWeekday >= currentWeekday) ?
         (targetWeekday - currentWeekday) : (7 - (currentWeekday - targetWeekday))
         
         // Calculate the next occurrence of the target weekday at the desired time
-        let nextDate = calendar.date(byAdding: .day, value: daysUntilNext, to: date)!
+        var nextDate = calendar.date(byAdding: .day, value: daysUntilNext, to: date)!
         var nextDateComponents = calendar.dateComponents([.year, .month, .day], from: nextDate)
         nextDateComponents.hour = hour
         nextDateComponents.minute = minute
-        
-        return calendar.date(from: nextDateComponents)
+        nextDate = calendar.date(from: nextDateComponents) ?? nextDate
+
+        // If the calculated nextDate is in the past or matches `date`, move to the next week
+        if nextDate <= date {
+            daysUntilNext += 7
+            nextDate = calendar.date(byAdding: .day, value: daysUntilNext, to: date)!
+            nextDateComponents = calendar.dateComponents([.year, .month, .day], from: nextDate)
+            nextDateComponents.hour = hour
+            nextDateComponents.minute = minute
+            nextDate = calendar.date(from: nextDateComponents) ?? nextDate
+        }
+
+        return nextDate
     }
     
     private func timeToNextMonthly(day: Int, time: String, from date: Date) -> Date? {
