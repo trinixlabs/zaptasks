@@ -2,8 +2,6 @@
 //  DockVisibilityControllerTests.swift
 //  ZapTasksTests
 //
-//  Created by OpenAI on 11/06/2026.
-//
 
 import AppKit
 import Testing

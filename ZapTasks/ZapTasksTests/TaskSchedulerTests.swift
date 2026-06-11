@@ -2,8 +2,6 @@
 //  TaskSchedulerTests.swift
 //  ZapTasksTests
 //
-//  Created by OpenAI on 11/06/2026.
-//
 
 import Foundation
 import SwiftData
@@ -46,7 +44,16 @@ struct TaskSchedulerTests {
 
     @MainActor
     private func makeScheduler() throws -> TaskScheduler {
-        let container = try ModelContainer(for: TaskItem.self, ExecutionRecord.self)
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let configuration = try ModelConfiguration(
+            url: StorageConfiguration.storeURL(appSupportURL: rootURL)
+        )
+        let container = try ModelContainer(
+            for: TaskItem.self,
+            ExecutionRecord.self,
+            configurations: configuration
+        )
         return TaskScheduler(context: container.mainContext)
     }
 

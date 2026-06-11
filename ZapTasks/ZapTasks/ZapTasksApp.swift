@@ -16,8 +16,12 @@ struct ZapTasksApp: App {
 
     init() {
         do {
-            // Initialize a shared ModelContainer
-            self.modelContainer = try ModelContainer(for: TaskItem.self, ExecutionRecord.self)
+            let configuration = try StorageConfiguration.modelConfiguration()
+            self.modelContainer = try ModelContainer(
+                for: TaskItem.self,
+                ExecutionRecord.self,
+                configurations: configuration
+            )
             let context = modelContainer.mainContext
             _scheduler = StateObject(wrappedValue: TaskScheduler(context: context))
         } catch {

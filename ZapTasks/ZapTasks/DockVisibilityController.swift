@@ -2,8 +2,6 @@
 //  DockVisibilityController.swift
 //  ZapTasks
 //
-//  Created by OpenAI on 11/06/2026.
-//
 
 import AppKit
 
