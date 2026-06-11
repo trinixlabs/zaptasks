@@ -14,25 +14,74 @@ ZapTasks is built in **Swift**, delivering a native experience for Mac users, an
 * **Mac Integration**: Operates smoothly as a Mac menu bar app and standalone application.
 * **Shell executing**: Executes commands efficiently using the powerful Shaas binary "Shell as a Service."
 
-## Getting Started
+## Get Started
 
-### Installation Steps
+### 1. Install ZapTasks
 
-1. **Install ZapTasks**
+Choose one of these installation paths:
 
-Download and install the ZapTasks app on your Mac.
+#### Option A: Homebrew
 
-2. **Start Shaas**
+```bash
+brew tap trinixlabs/tap
+brew install --cask zaptasks
+```
 
-Navigate to the directory containing shaas and run the following command:
+#### Option B: DMG
+
+1. Open the [GitHub Releases](https://github.com/trinixlabs/zaptasks/releases) page.
+2. Download the latest `ZapTasks-<version>.dmg`.
+3. Open the DMG and drag `ZapTasks.app` into your `Applications` folder.
+
+#### Option C: ZIP
+
+1. Open the [GitHub Releases](https://github.com/trinixlabs/zaptasks/releases) page.
+2. Download the latest `ZapTasks-<version>.zip`.
+3. Extract it and move `ZapTasks.app` to your `Applications` folder.
+
+### 2. First Launch on macOS
+
+ZapTasks is an open-source project and release builds are currently distributed unsigned.
+On first launch, macOS may show:
+
+- `"ZapTasks" cannot be opened because Apple cannot check it for malicious software.`
+- `"ZapTasks" is damaged and can't be opened. You should move it to the Bin.`
+
+To run it anyway:
+
+1. Open `ZapTasks.app` from `Applications`.
+2. If macOS blocks it, right-click `ZapTasks.app` and choose `Open`.
+3. Click `Open` again in the warning dialog.
+
+If Finder still blocks it, use:
+
+- `System Settings -> Privacy & Security` and click `Open Anyway` for ZapTasks.
+
+Alternative Terminal path:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/ZapTasks.app
+open /Applications/ZapTasks.app
+```
+
+If needed, remove all extended attributes and try again:
+
+```bash
+xattr -cr /Applications/ZapTasks.app
+open /Applications/ZapTasks.app
+```
+
+### 3. Start Shaas
+
+Navigate to the directory containing `shaas` and run:
 
 ```bash
 ./shaas
 ```
 
-3. **Launch ZapTasks**
+### 4. Launch ZapTasks
 
-Open the ZapTasks app to start configuring and managing your tasks.
+Open `ZapTasks.app` and start configuring and managing your tasks.
 
 ## How It Works
 
