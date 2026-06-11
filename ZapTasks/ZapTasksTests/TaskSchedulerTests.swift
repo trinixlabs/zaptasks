@@ -2,8 +2,6 @@
 //  TaskSchedulerTests.swift
 //  ZapTasksTests
 //
-//  Created by OpenAI on 11/06/2026.
-//
 
 import Foundation
 import SwiftData
