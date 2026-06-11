@@ -12,6 +12,7 @@ import Testing
 
 struct TaskSchedulerTests {
 
+    @MainActor
     @Test func neverRunDailyTaskScheduledEarlierTodayCountsAsMissed() throws {
         let scheduler = try makeScheduler()
         let now = makeDate(year: 2026, month: 6, day: 11, hour: 10, minute: 0)
@@ -26,6 +27,7 @@ struct TaskSchedulerTests {
         #expect(scheduler.shouldExecuteMissedTask(task, now: now))
     }
 
+    @MainActor
     @Test func hourlyCatchUpUsesLastRunAsReferencePoint() throws {
         let scheduler = try makeScheduler()
         let lastRan = makeDate(year: 2026, month: 6, day: 11, hour: 10, minute: 50)
@@ -42,6 +44,7 @@ struct TaskSchedulerTests {
         #expect(nextRun == makeDate(year: 2026, month: 6, day: 11, hour: 11, minute: 0))
     }
 
+    @MainActor
     private func makeScheduler() throws -> TaskScheduler {
         let container = try ModelContainer(for: TaskItem.self, ExecutionRecord.self)
         return TaskScheduler(context: container.mainContext)
