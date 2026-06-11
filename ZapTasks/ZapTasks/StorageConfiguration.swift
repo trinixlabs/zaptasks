@@ -75,10 +75,8 @@ enum StorageConfiguration {
 
     private static func legacyStoreCandidates(appSupportURL: URL) -> [URL] {
         let legacyAppSupportURL = appSupportURL.appendingPathComponent(storeFilename, isDirectory: false)
-        let libraryRootURL = appSupportURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let legacyContainerURL = legacyContainerPathComponents.reduce(libraryRootURL) { partialURL, component in
+        let libraryURL = appSupportURL.deletingLastPathComponent()
+        let legacyContainerURL = legacyContainerPathComponents.reduce(libraryURL) { partialURL, component in
             partialURL.appendingPathComponent(component, isDirectory: false)
         }
 
