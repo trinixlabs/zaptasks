@@ -43,7 +43,7 @@ enum StorageConfiguration {
             create: true
         )
         try migrateLegacyStoreIfNeeded(appSupportURL: appSupportURL, fileManager: fileManager)
-        try ModelConfiguration(url: storeURL(fileManager: fileManager))
+        return try ModelConfiguration(url: storeURL(fileManager: fileManager))
     }
 
     static func migrateLegacyStoreIfNeeded(
